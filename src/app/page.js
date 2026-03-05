@@ -5,7 +5,7 @@ import { useState } from 'react';
 async function handleCheckout(cart) {
   const formattedCart = cart.map((item) => ({
     price_data: {
-      currency: 'cad', // Replace 'cad' with the appropriate currency if needed
+      currency: 'cad', 
       product_data: {
         name: item.name,
       },
