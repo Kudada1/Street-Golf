@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 async function handleCheckout(cart) {
   const formattedCart = cart.map((item) => ({
@@ -34,6 +34,8 @@ async function handleCheckout(cart) {
 export default function Home() {
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const addToCart = (product) => {
     setCart((prevCart) => {
@@ -61,33 +63,65 @@ export default function Home() {
   };
 
   const products = [
-    { id: 1, name: 'Black Beanie', price: 35, image: '/images/beanie-black.jpg' },
-    { id: 2, name: 'Purple Beanie', price: 35, image: '/images/beanie-purple.jpg' },
+    { id: 1, name: 'Black Beanie', price: 35, images: ['/images/black_1.jpg', '/images/black_2.jpg'] },
+    { id: 2, name: 'Purple Beanie', price: 35, images: ['/images/purple_1.jpg', '/images/purple_2.jpg'] },
   ];
 
+  const openModal = (index) => {
+    setCurrentImageIndex(index);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prevIndex) => (prevIndex + 1) % products.length);
+  };
+
+  const prevImage = () => {
+    setCurrentImageIndex((prevIndex) => (prevIndex - 1 + products.length) % products.length);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % products.length);
+    }, 3000); // Change image every 3 seconds
+
+    return () => clearInterval(interval); // Cleanup interval on component unmount
+  }, [products.length]);
+
   return (
-    <div className="flex min-h-screen flex-col items-center bg-black text-white">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-black text-white">
       {/* Hero Section */}
       <header className="w-full py-16 text-center">
-        <h1 className="text-4xl font-bold tracking-wide">Street Golf</h1>
+        <img src="/images/logo.jpg" alt="Street Golf Logo" className="mx-auto h-64 w-auto" />
         <p className="mt-4 text-lg">Blending Urban Street Culture with Golf Fashion</p>
       </header>
 
       {/* Product Grid */}
-      <main className="grid w-full max-w-5xl grid-cols-1 gap-8 px-4 sm:grid-cols-2 lg:grid-cols-3">
-        {products.map((product) => (
-          <div key={product.id} className="group relative overflow-hidden rounded-lg bg-charcoal">
+      <main className="grid w-full max-w-5xl grid-cols-1 gap-8 px-4 sm:grid-cols-2 lg:grid-cols-2 justify-center items-center">
+        {products.map((product, index) => (
+          <div
+            key={product.id}
+            className="group relative overflow-hidden rounded-lg bg-charcoal cursor-pointer"
+            onClick={() => openModal(index)}
+          >
             <img
-              src={product.image}
+              src={product.images[currentImageIndex % product.images.length]} // Automatically cycle through images
               alt={product.name}
-              className="h-64 w-full object-cover transition-transform duration-300 group-hover:scale-110"
+              className="h-80 w-full object-cover"
             />
-            <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black to-transparent p-4">
+            <div className="mt-4 text-center">
               <h2 className="text-xl font-semibold">{product.name}</h2>
               <p className="mt-2 text-lg">${product.price}</p>
               <button
-                onClick={() => addToCart(product)}
-                className="mt-4 rounded bg-purple px-4 py-2 text-sm font-bold text-white hover:bg-purple-700"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent modal from opening when clicking the button
+                  addToCart(product);
+                }}
+                className="mt-4 rounded bg-purple px-4 py-2 text-sm font-bold text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
               >
                 Add to Cart
               </button>
@@ -148,6 +182,20 @@ export default function Home() {
               Checkout
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+          <button onClick={closeModal} className="absolute top-4 right-4 text-white">Close</button>
+          <button onClick={prevImage} className="absolute left-4 text-white">Prev</button>
+          <img
+            src={products[currentImageIndex].images[0]}
+            alt="Product Image"
+            className="max-h-[80%] max-w-[80%] object-contain"
+          />
+          <button onClick={nextImage} className="absolute right-4 text-white">Next</button>
         </div>
       )}
 
