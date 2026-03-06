@@ -1,13 +1,62 @@
 import Stripe from "stripe";
+import nodemailer from 'nodemailer';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+async function sendSuccessEmail(customerEmail) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail', // Use your email service provider
+    auth: {
+      user: process.env.EMAIL_USER, // Your email address
+      pass: process.env.EMAIL_PASS, // Your email password or app password
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: customerEmail,
+    subject: 'Payment Successful - Street Golf',
+    text: 'Thank you for your purchase! Your payment was successful. Your order will be shipped within 3-5 business days.',
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Success email sent to:', customerEmail);
+  } catch (error) {
+    console.error('Error sending email:', error);
+  }
+}
+
+async function notifyOwner(customerEmail) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: 'streetgolfca@gmail.com',
+    subject: 'New Payment Received - Street Golf',
+    text: `A new payment has been successfully processed.\n\nCustomer Email: ${customerEmail}\n\nPlease check your Stripe dashboard for more details.`,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Notification email sent to owner.');
+  } catch (error) {
+    console.error('Error sending notification email to owner:', error);
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method === "POST") {
     try {
       console.log(req.body);
 
-      const { items, currency = "cad", shippingDetails, discountCode } = req.body;
+      const { items, currency = "cad", shippingDetails, discountCode, customerEmail } = req.body;
 
       console.log("Items received:", items);
       console.log("Currency received:", currency);
@@ -27,20 +76,10 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Unsupported currency." });
       }
 
-      const origin = req.headers.origin || "http://localhost:3001";
+      const origin = req.headers.origin || "http://localhost:3000";
 
       // Calculate dynamic shipping cost based on location
-      let shippingAmount = 1000; // Default flat rate in cents
-      if (shippingDetails && shippingDetails.location) {
-        const location = shippingDetails.location.toLowerCase();
-        if (location === "us") {
-          shippingAmount = 1500; // $15 for US
-        } else if (location === "eu") {
-          shippingAmount = 2000; // $20 for EU
-        } else {
-          shippingAmount = 2500; // $25 for other locations
-        }
-      }
+      let shippingAmount = 0; // Set shipping fee to 0 for all locations
 
       // Validate discount code
       const validDiscountCodes = {
@@ -89,6 +128,20 @@ export default async function handler(req, res) {
             throw new Error("price_data must include a `currency` field.");
           }
 
+          // Set price for beanie to 10 dollars
+          if (name && name.toLowerCase() === "beanie") {
+            return {
+              price_data: {
+                currency,
+                product_data: {
+                  name: "Beanie",
+                },
+                unit_amount: 1000, // 10 dollars in cents
+              },
+              quantity: quantity || 1,
+            };
+          }
+
           if (price) {
             return {
               price, // Stripe price ID
@@ -131,13 +184,36 @@ export default async function handler(req, res) {
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         shipping_address_collection: {
-          allowed_countries: ["CA", "US",]
+          allowed_countries: ["CA", "US"], // Restricted to Canada and USA only
         },
+        customer_email: customerEmail, // Include customer email for Stripe
+        shipping_options: [
+          {
+            shipping_rate_data: {
+              type: "fixed_amount",
+              fixed_amount: {
+                amount: shippingAmount,
+                currency: currency,
+              },
+              display_name: "Standard Shipping",
+              delivery_estimate: {
+                minimum: { unit: "business_day", value: 3 },
+                maximum: { unit: "business_day", value: 5 },
+              },
+            },
+          },
+        ],
         line_items: lineItems,
         mode: "payment",
         success_url: `${origin}/success`,
         cancel_url: `${origin}/cancel`,
       });
+
+      // Send success email to the customer
+      if (customerEmail) {
+        await sendSuccessEmail(customerEmail);
+        await notifyOwner(customerEmail); // Notify the owner
+      }
 
       res.status(200).json({ id: session.id, url: session.url });
     } catch (error) {

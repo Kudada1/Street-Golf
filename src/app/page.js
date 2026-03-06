@@ -97,7 +97,8 @@ export default function Home() {
       {/* Hero Section */}
       <header className="w-full py-16 text-center">
         <img src="/images/logo.jpg" alt="Street Golf Logo" className="mx-auto h-64 w-auto" />
-        <p className="mt-4 text-lg">Blending Urban Street Culture with Golf Fashion</p>
+        <p className="mt-2 text-xl font-bold ">Free shipping only for this weekend!</p>
+        <p className="mt-6 text-lg">Blending Urban Street Culture with Golf Fashion</p>
       </header>
 
       {/* Product Grid */}
@@ -209,7 +210,9 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="w-full py-8 text-center text-sm text-gray-400">
-        © 2026 Street Golf. All rights reserved.
+        <p className="mt-2 text-lg">Follow us on Instagram: <a href="https://instagram.com/street_golf_" className="text-blue-500" target="_blank">@street_golf_</a></p>
+        <p className="mt-1 text-lg">Contact us: <a href="mailto:streetgolfca@gmail.com" className="text-blue-500">streetgolfca@gmail.com</a></p>
+        <p className="mt-4">© 2026 Street Golf. All rights reserved.</p>
       </footer>
     </div>
   );
